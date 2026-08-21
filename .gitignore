@@ -1,0 +1,14 @@
+# Virtual Environments
+venv/
+linux_venv/
+linux_venv~/
+*.pyc
+__pycache__/
+
+# Database
+db.sqlite3
+
+# Environment & IDE settings
+.vscode/
+.DS_Store
+desktop.ini

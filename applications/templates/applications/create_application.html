@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <title>Νέα Αίτηση</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; padding: 40px; }
+        .form-container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+        .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 1.1em; font-weight: bold; margin-top: 20px; }
+        .btn-cancel { display: block; text-align: center; margin-top: 15px; color: #7f8c8d; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>➕ Δημιουργία Νέου Έργου</h2>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Τίτλος Έργου:</label>
+            {{ form.title }}
+        </div>
+
+        <div class="form-group">
+            <label>Ονοματεπώνυμο Πελάτη:</label>
+            {{ form.client_name }}
+        </div>
+
+        <div class="form-group">
+            <label>Διεύθυνση Ακινήτου/Έργου:</label>
+            {{ form.address }}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Ανάθεση σε:</label>
+                {{ form.assigned_to }}
+            </div>
+            <div class="form-group">
+                <label>Προθεσμία:</label>
+                {{ form.due_date }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Οδηγίες προς τον Τεχνικό:</label>
+            {{ form.instructions }}
+        </div>
+
+        <div class="form-group" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px dashed #ccc;">
+            <label>📂 Ανέβασμα Αρχικού Αρχείου (π.χ. Τοπογραφικό):</label>
+            {{ form.initial_file }}
+        </div>
+
+        <button type="submit" class="btn-save">Δημιουργία & Αποστολή</button>
+        <a href="{% url 'dashboard' %}" class="btn-cancel">Ακύρωση</a>
+    </form>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return;
+
+    input.setAttribute('accept', '.pdf,.docx,.doc,.odt');
+    
+    if (document.body.innerText.includes("Δημιουργία Νέου Έργου")) {
+        input.setAttribute('multiple', 'multiple');
+        const box = Object.assign(document.createElement('div'), { style: 'margin-top:10px; font-size:0.9em; color:#495057;' });
+        input.parentNode.appendChild(box);
+
+        input.addEventListener('change', function() {
+            box.innerHTML = '';
+            if (this.files.length > 3) {
+                alert("Μπορείτε να ανεβάσετε το ανώτερο μέχρι 3 αρχεία!");
+                this.value = '';
+                return;
+            }
+            if (this.files.length) {
+                let items = Array.from(this.files).map(f => `<li>📄 ${f.name} <span style="color:#6c757d;">((${(f.size/1024).toFixed(1)} KB)</span></li>`).join('');
+                box.innerHTML = `<strong>Επιλεγμένα αρχεία:</strong><ul style="padding-left:20px; margin-top:5px;">${items}</ul>`;
+            }
+        });
+    }
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // Εντοπισμός του πεδίου της Προθεσμίας
+    const dateInput = document.querySelector('input[type="date"], input[type="datetime-local"]');
+    
+    if (dateInput && !dateInput.value) {
+        const targetDate = new Date();
+        // Προσθήκη 2 ημερών στη σημερινή ημερομηνία
+        targetDate.setDate(targetDate.getDate() + 2);
+        
+        const year = targetDate.getFullYear();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const hours = String(targetDate.getHours()).padStart(2, '0');
+        const minutes = String(targetDate.getMinutes()).padStart(2, '0');
+        
+        // Συμπλήρωση στο πεδίο
+        if (dateInput.type === 'datetime-local') {
+            dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        } else {
+            dateInput.value = `${year}-${month}-${day}`;
+        }
+    }
+});
+</script>
+</body>
+</html>

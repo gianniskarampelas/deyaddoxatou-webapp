@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Λεπτομέρειες: {{ application.title }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background-color: #f0f2f5; margin: 0; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; align-items: start; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        h1 { margin-top: 0; color: #2c3e50; font-size: 24px; }
+        h3 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; color: #34495e; }
+        .status-badge { display: inline-block; background: #3498db; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold; }
+        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f0f0f0; }
+        .file-name { font-size: 0.85em; color: #27ae60; background: #eafaf1; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }
+        .btn-back { text-decoration: none; color: #7f8c8d; display: inline-block; margin-bottom: 20px; font-weight: bold; }
+        .btn-view { background: #28a745; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; }
+        .btn-submit { color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #7f8c8d; }
+        select, input[type="file"], input[type="date"], textarea, input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; font-family: inherit; }
+        
+        .chat-box { max-height: 400px; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; }
+        .comment-bubble { padding: 12px 18px; border-radius: 12px; margin-bottom: 15px; position: relative; }
+        .comment-mine { background: #e1f5fe; border: 1px solid #b3e5fc; margin-left: 30px; }
+        .comment-others { background: #f8f9fa; border: 1px solid #e9ecef; margin-right: 30px; }
+        .comment-meta { display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 5px; color: #7f8c8d; }
+        .comment-text { margin: 0; white-space: pre-wrap; color: #2c3e50; line-height: 1.4; }
+
+        @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="{% url 'dashboard' %}" class="btn-back">← Επιστροφή στον Πίνακα</a>
+
+    <div class="grid-layout">
+        <div class="left-column">
+            
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h1 style="margin-bottom: 0;">{{ application.title }}</h1>
+                    <a href="{% url 'export_pdf' application.pk %}" style="background: #e74c3c; color: white; padding: 8px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.9em;">📄 PDF Αναφορά</a>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <span class="status-badge">{{ application.get_status_display }}</span>
+                </div>
+                
+                <div style="display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap;">
+                    <p><strong>Πελάτης:</strong><br> {{ application.client_name }}</p>
+                    <p><strong>Ανατέθηκε σε:</strong><br> {{ application.assigned_to.username|default:"---" }}</p>
+                    <p><strong>Προθεσμία:</strong><br> 
+                        {% if application.due_date %}
+                            <span style="color: #e74c3c; font-weight: bold;">📅 {{ application.due_date|date:"d/m/Y" }}</span>
+                        {% else %}
+                            <span style="color: #95a5a6;">---</span>
+                        {% endif %}
+                    </p>
+                    
+                    <p style="width: 100%; margin-top: 0;"><strong>Διεύθυνση Έργου:</strong><br>
+                        {% if application.address %}
+                            📍 {{ application.address }}
+                            <a href="https://www.google.com/maps/search/?api=1&query={{ application.address|urlencode }}" target="_blank" style="font-size: 0.85em; margin-left: 10px; color: #3498db; text-decoration: none; font-weight: bold;">(Άνοιγμα στο Maps ↗)</a>
+                        {% else %}
+                            <span style="color: #95a5a6;">Δεν έχει καταχωρηθεί διεύθυνση</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                {% if application.address %}
+                <div style="margin-top: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <iframe
+                      width="100%"
+                      height="250"
+                      style="border:0"
+                      loading="lazy"
+                      allowfullscreen
+                      src="https://maps.google.com/maps?q={{ application.address|urlencode }}&t=&z=15&ie=UTF8&iwloc=&output=embed">
+                    </iframe>
+                </div>
+                {% endif %}
+
+                {% if application.instructions %}
+                <div style="background: #fff3cd; padding: 20px; border-left: 6px solid #ffc107; margin-top: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="margin-top: 0; color: #856404;">📝 Οδηγίες από Γραμματεία:</h4>
+                    <p style="margin-bottom: 0; color: #533f03; font-size: 1.1em; white-space: pre-wrap;">{{ application.instructions }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h3>📄 Αρχεία & Δικαιολογητικά</h3>
+                {% for doc in documents %}
+                    {% if is_manager or doc.doc_type == 'FINAL' %}
+                    <div class="doc-item">
+                        <div class="file-info">
+                            <strong>{{ doc.get_doc_type_display }}</strong><br>
+                            <span class="file-name">📎 {{ doc.filename }}</span><br>
+                            <small style="color: #7f8c8d;">Από: {{ doc.uploaded_by.username }} | {{ doc.uploaded_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <a href="{{ doc.file.url }}" target="_blank" class="btn-view">Προβολή</a>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                    <p style="text-align: center; color: #95a5a6; padding: 10px;">Δεν υπάρχουν αρχεία.</p>
+                {% endfor %}
+            </div>
+
+            <div class="card">
+                <h3>💬 Εσωτερική Επικοινωνία</h3>
+                <div class="chat-box">
+                    {% for comment in comments %}
+                        <div class="comment-bubble {% if comment.author == request.user %}comment-mine{% else %}comment-others{% endif %}">
+                            <div class="comment-meta">
+                                <strong>{{ comment.author.username }}</strong>
+                                <span>{{ comment.created_at|date:"d/m/y H:i" }}</span>
+                            </div>
+                            <p class="comment-text">{{ comment.text }}</p>
+                        </div>
+                    {% empty %}
+                        <p style="text-align: center; color: #95a5a6; font-style: italic; padding: 10px;">Δεν υπάρχουν μηνύματα. Γράψτε το πρώτο!</p>
+                    {% endfor %}
+                </div>
+                <form method="POST" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    {% csrf_token %}
+                    {{ comment_form.text }}
+                    <button type="submit" name="add_comment" class="btn-submit" style="background: #3498db; margin-top: 5px;">
+                        Αποστολή Μηνύματος
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+        <div class="right-column">
+            {% if is_manager %}
+            <div class="card" style="border-top: 5px solid #f1c40f;">
+                <h3>⚙️ Διαχείριση Έργου</h3>
+                <form method="POST">
+                    {% csrf_token %}
+                    <label>Κατάσταση:</label>
+                    {{ update_form.status }}
+                    <label style="margin-top: 15px;">Ανάθεση σε:</label>
+                    {{ update_form.assigned_to }}
+                    <label style="margin-top: 15px;">Προθεσμία Παράδοσης:</label>
+                    {{ update_form.due_date }}
+                    
+                    <label style="margin-top: 15px;">Διεύθυνση Έργου:</label>
+                    {{ update_form.address }}
+                    
+                    <label style="margin-top: 15px;">Οδηγίες προς Τεχνικό:</label>
+                    {{ update_form.instructions }}
+                    <button type="submit" name="update_app" class="btn-submit" style="background: #f39c12; margin-top: 20px;">
+                        Αποθήκευση Αλλαγών
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="card" style="border-top: 5px solid #34495e;">
+                <h3>+ Νέο Έγγραφο</h3>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" name="upload_doc" class="btn-submit" style="background: #2c3e50;">Ανέβασμα</button>
+                </form>
+            </div>
+
+            {% if not is_manager and is_assigned_tech and application.status != 'TECH_DONE' and application.status != 'CLOSED' %}
+            <div class="card" style="border-top: 5px solid #27ae60; background-color: #eafaf1;">
+                <h3 style="color: #27ae60; margin-top: 0;">✔️ Ολοκλήρωση</h3>
+                <p style="font-size: 0.85em; color: #2c3e50; margin-bottom: 15px;">Σιγουρέψου ότι έχεις ανεβάσει τα τελικά αρχεία πριν την ολοκλήρωση.</p>
+                <form method="POST" onsubmit="return confirm('Είσαι σίγουρος/η ότι έχεις ανεβάσει όλα τα τελικά αρχεία και θέλεις να επιστρέψεις την αίτηση στη Γραμματεία;');">
+                    {% csrf_token %}
+                    <button type="submit" name="tech_complete" class="btn-submit" style="background: #27ae60; margin-top: 0;">
+                        Επιστροφή στη Γραμματεία
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Βρίσκει το πεδίο επιλογής αρχείου που παράγει αυτόματα το Django
+        var fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+            // Του επιβάλλει να δέχεται μόνο έγγραφα
+            fileInput.setAttribute('accept', '.pdf,.docx,.doc,.odt');
+        }
+    });
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const dateInput = document.querySelector('input[type="date"]');
+    if (dateInput && !dateInput.value) {
+        const target = new Date();
+        target.setDate(target.getDate() + 2); // +2 ημέρες
+        
+        const y = target.getFullYear();
+        const m = String(target.getMonth() + 1).padStart(2, '0');
+        const d = String(target.getDate()).padStart(2, '0');
+        
+        // 1. Βάζουμε την κανονική τιμή για το Django
+        dateInput.value = `${y}-${m}-${d}`;
+        
+        // 2. ΕΠΙΒΟΛΗ ΕΛΛΗΝΙΚΗΣ ΜΟΡΦΗΣ (Για αγγλικά Windows)
+        // Φτιάχνουμε τη μορφή "22/05/2026"
+        const greekFormat = `${d}/${m}/${y}`; 
+        dateInput.setAttribute('data-date', greekFormat);
+        
+        // Προσθέτουμε CSS δυναμικά για να εμφανίζεται το data-date αντί για το default του browser
+        const style = document.createElement('style');
+        style.innerHTML = `
+            input[type="date"]::before { content: attr(data-date); width: 100%; }
+            input[type="date"]:focus::before { content: "" !important; width: auto; }
+        `;
+        document.head.appendChild(style);
+        
+        // Όταν αλλάζει η ημερομηνία από το ημερολόγιο, ανανεώνουμε την ελληνική εμφάνιση
+        dateInput.addEventListener('change', function() {
+            if(this.value) {
+                const parts = this.value.split('-');
+                this.setAttribute('data-date', `${parts[2]}/${parts[1]}/${parts[0]}`);
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>
