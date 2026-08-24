@@ -5,15 +5,16 @@ import hashlib
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 1. PAGE CONFIG & MODERN LOGIN STYLING
+# 1. PAGE CONFIG & MODERN THEMING
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="ΔΕΥΑ Δοξάτου - Login", 
+    page_title="ΔΕΥΑ Δοξάτου - Σύστημα Διαχείρισης", 
     page_icon="💧", 
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom Styling
+# Custom Styling (Light Theme & Centered Card Support)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -22,7 +23,7 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Background Gradient για όλη την εφαρμογή */
+    /* Gradient Background για Login */
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0284c7 100%) !important;
     }
@@ -44,35 +45,40 @@ st.markdown("""
     }
 
     /* Input Fields */
-    div[data-testid="stForm"] input {
+    div[data-testid="stForm"] input, select {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border: 1.5px solid #cbd5e1 !important;
         border-radius: 0.75rem !important;
-        padding: 0.5rem 0.75rem !important;
     }
 
-    /* Submit Button */
-    div[data-testid="stForm"] .stButton>button {
+    /* Buttons */
+    .stButton>button {
         background: #0284c7 !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 0.75rem !important;
         font-weight: 600 !important;
-        font-size: 1rem !important;
-        padding: 0.75rem !important;
-        width: 100% !important;
         box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4) !important;
     }
 
-    div[data-testid="stForm"] .stButton>button:hover {
+    .stButton>button:hover {
         background: #0369a1 !important;
+    }
+
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #f1f5f9 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 2. HELPER FUNCTIONS
+# 2. HELPER FUNCTIONS FOR DATABASE & SECURITY
 # ---------------------------------------------------------
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
@@ -89,9 +95,16 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             password TEXT,
-            role TEXT
+            role TEXT,
+            email TEXT
         )
     ''')
+    # Έλεγχος αν υπάρχει η στήλη email σε παλιά βάση
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except sqlite3.OperationalError:
+        pass
+        
     c.execute('''
         CREATE TABLE IF NOT EXISTS requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,14 +117,14 @@ def init_db():
     ''')
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
-        c.execute("INSERT INTO users VALUES (?, ?, ?)", ('admin', make_hashes('1234'), 'Admin'))
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?)", ('admin', make_hashes('1234'), 'Admin', 'admin@deyad.gr'))
     conn.commit()
     conn.close()
 
 init_db()
 
 # ---------------------------------------------------------
-# 3. LOGIN SCREEN (CENTERED CARD)
+# 3. AUTHENTICATION SYSTEM (LOGIN SCREEN)
 # ---------------------------------------------------------
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
@@ -135,6 +148,8 @@ if not st.session_state['logged_in']:
             user_input = st.text_input("Όνομα Χρήστη")
             pwd_input = st.text_input("Συνθηματικό", type="password")
             
+            st.markdown("<br>", unsafe_allow_html=True)
+            
             btn_col1, btn_col2, btn_col3 = st.columns([1, 1.5, 1])
             with btn_col2:
                 submitted = st.form_submit_button("Είσοδος στο Σύστημα")
@@ -156,7 +171,7 @@ if not st.session_state['logged_in']:
     st.stop()
 
 # ---------------------------------------------------------
-# 4. MAIN APP (DASHBOARD)
+# 4. NAVIGATION & MENU
 # ---------------------------------------------------------
 st.sidebar.title("💧 ΔΕΥΑ Δοξάτου")
 st.sidebar.write(f"👤 Χρήστης: **{st.session_state['username']}** ({st.session_state['role']})")
@@ -171,6 +186,11 @@ if st.sidebar.button("Αποσύνδεση"):
     st.session_state['logged_in'] = False
     st.rerun()
 
+# ---------------------------------------------------------
+# 5. PAGES
+# ---------------------------------------------------------
+
+# --- DASHBOARD ---
 if menu == "📊 Dashboard":
     st.header("📊 Πίνακας Ελέγχου Αιτημάτων")
     conn = sqlite3.connect('streamlit_deyad.db')
@@ -185,6 +205,7 @@ if menu == "📊 Dashboard":
     st.divider()
     st.dataframe(df, use_container_width=True)
 
+# --- NEW REQUEST ---
 elif menu == "➕ Νέο Αίτημα":
     st.header("➕ Νέο Αίτημα")
     with st.form("new_form"):
@@ -200,6 +221,7 @@ elif menu == "➕ Νέο Αίτημα":
             conn.close()
             st.success("Καταχωρήθηκε επιτυχώς!")
 
+# --- MANAGEMENT ---
 elif menu == "⚙️ Διαχείριση Βλαβών":
     st.header("⚙️ Διαχείριση Βλαβών")
     conn = sqlite3.connect('streamlit_deyad.db')
@@ -215,13 +237,24 @@ elif menu == "⚙️ Διαχείριση Βλαβών":
             st.rerun()
     conn.close()
 
+# --- USER MANAGEMENT (ADMIN ONLY) ---
 elif menu == "👥 Διαχείριση Χρηστών":
     st.header("👥 Διαχείριση Χρηστών & Προσβάσεων")
-    tab1, tab2 = st.tabs(["➕ Προσθήκη Χρήστη", "📋 Λίστα Χρηστών"])
     
+    tab1, tab2, tab3 = st.tabs(["📋 Λίστα Χρηστών", "➕ Προσθήκη Χρήστη", "✏️ Επεξεργασία / Διαγραφή"])
+    
+    # TAB 1: LIST
     with tab1:
+        conn = sqlite3.connect('streamlit_deyad.db')
+        users_df = pd.read_sql_query("SELECT username, email, role FROM users", conn)
+        conn.close()
+        st.dataframe(users_df, use_container_width=True)
+
+    # TAB 2: ADD USER
+    with tab2:
         with st.form("add_user_form"):
             new_username = st.text_input("Όνομα Χρήστη (Username)")
+            new_email = st.text_input("Email")
             new_password = st.text_input("Κωδικός", type="password")
             new_role = st.selectbox("Ρόλος", ["Τεχνικός", "Γραμματεία", "Admin"])
             
@@ -230,19 +263,60 @@ elif menu == "👥 Διαχείριση Χρηστών":
                     conn = sqlite3.connect('streamlit_deyad.db')
                     c = conn.cursor()
                     try:
-                        c.execute("INSERT INTO users VALUES (?, ?, ?)", 
-                                  (new_username, make_hashes(new_password), new_role))
+                        c.execute("INSERT INTO users VALUES (?, ?, ?, ?)", 
+                                  (new_username, make_hashes(new_password), new_role, new_email))
                         conn.commit()
-                        st.success(f"Ο χρήστης '{new_username}' δημιουργήθηκε ως {new_role}!")
+                        st.success(f"Ο χρήστης '{new_username}' δημιουργήθηκε επιτυχώς!")
+                        st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("Το Username υπάρχει ήδη!")
                     finally:
                         conn.close()
                 else:
-                    st.warning("Συμπλήρωσε όλα τα πεδία.")
+                    st.warning("Συμπλήρωσε Username και Κωδικό.")
 
-    with tab2:
+    # TAB 3: EDIT / DELETE
+    with tab3:
         conn = sqlite3.connect('streamlit_deyad.db')
-        users_df = pd.read_sql_query("SELECT username, role FROM users", conn)
+        c = conn.cursor()
+        c.execute("SELECT username FROM users")
+        user_list = [row[0] for row in c.fetchall()]
+        
+        selected_user = st.selectbox("Επιλογή Χρήστη προς Επεξεργασία", user_list)
+        
+        if selected_user:
+            c.execute("SELECT username, email, role FROM users WHERE username=?", (selected_user,))
+            user_data = c.fetchone()
+            
+            with st.form("edit_user_form"):
+                st.subheader(f"Επεξεργασία: {selected_user}")
+                edit_username = st.text_input("Νέο Username", value=user_data[0])
+                edit_email = st.text_input("Email", value=user_data[1] if user_data[1] else "")
+                edit_role = st.selectbox("Ρόλος", ["Τεχνικός", "Γραμματεία", "Admin"], 
+                                         index=["Τεχνικός", "Γραμματεία", "Admin"].index(user_data[2]) if user_data[2] in ["Τεχνικός", "Γραμματεία", "Admin"] else 0)
+                edit_password = st.text_input("Νέος Κωδικός (Άφησέ το κενό αν δεν θέλεις να αλλαχθεί)", type="password")
+                
+                save_btn = st.form_submit_button("💾 Αποθήκευση Αλλαγών")
+                
+                if save_btn:
+                    if edit_password:
+                        hashed_p = make_hashes(edit_password)
+                        c.execute("UPDATE users SET username=?, email=?, role=?, password=? WHERE username=?",
+                                  (edit_username, edit_email, edit_role, hashed_p, selected_user))
+                    else:
+                        c.execute("UPDATE users SET username=?, email=?, role=? WHERE username=?",
+                                  (edit_username, edit_email, edit_role, selected_user))
+                    conn.commit()
+                    st.success("Τα στοιχεία ενημερώθηκαν!")
+                    st.rerun()
+
+            st.divider()
+            if selected_user != st.session_state['username']:
+                if st.button(f"❌ Διαγραφή Χρήστη '{selected_user}'"):
+                    c.execute("DELETE FROM users WHERE username=?", (selected_user,))
+                    conn.commit()
+                    st.warning(f"Ο χρήστης '{selected_user}' διαγράφηκε.")
+                    st.rerun()
+            else:
+                st.info("Δεν μπορείτε να διαγράψετε τον εαυτό σας.")
         conn.close()
-        st.dataframe(users_df, use_container_width=True)
